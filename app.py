@@ -248,18 +248,26 @@ elif page == "Analytics":
                     line=dict(color='orange', width=3)
                 ))
 
-                # Add linear trend line
-                x_numeric = np.arange(len(weight_data))
-                z = np.polyfit(x_numeric, weight_data['weight'], 1)
-                trend_line = np.poly1d(z)(x_numeric)
+                # Add linear trend line (only if we have enough data points)
+                if len(weight_data) >= 2:
+                    try:
+                        x_numeric = np.arange(len(weight_data))
+                        # Ensure we have valid weight data
+                        valid_weights = weight_data['weight'].dropna()
+                        if len(valid_weights) >= 2 and valid_weights.std() > 0:
+                            z = np.polyfit(x_numeric, weight_data['weight'], 1)
+                            trend_line = np.poly1d(z)(x_numeric)
 
-                fig_weight.add_trace(go.Scatter(
-                    x=weight_data['date'],
-                    y=trend_line,
-                    mode='lines',
-                    name='Linear Trend',
-                    line=dict(color='red', width=2, dash='dash')
-                ))
+                            fig_weight.add_trace(go.Scatter(
+                                x=weight_data['date'],
+                                y=trend_line,
+                                mode='lines',
+                                name='Linear Trend',
+                                line=dict(color='red', width=2, dash='dash')
+                            ))
+                    except (np.linalg.LinAlgError, ValueError):
+                        # Skip trend line if calculation fails
+                        pass
 
                 fig_weight.update_layout(
                     title='Weight Over Time with Trends',
