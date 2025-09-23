@@ -279,7 +279,8 @@ elif page == "Analytics":
                     title='Weight Over Time with Trends',
                     xaxis_title="Date",
                     yaxis_title="Weight (lbs)",
-                    showlegend=True
+                    showlegend=True,
+                    xaxis=dict(tickformat='%Y-%m-%d')
                 )
                 st.plotly_chart(fig_weight, use_container_width=True)
 
@@ -291,7 +292,11 @@ elif page == "Analytics":
                 fig_dosage = px.line(dosage_data, x='date', y='dosage',
                                    title='Dosage Over Time',
                                    markers=True)
-                fig_dosage.update_layout(xaxis_title="Date", yaxis_title="Dosage (mg)")
+                fig_dosage.update_layout(
+                    xaxis_title="Date",
+                    yaxis_title="Dosage (mg)",
+                    xaxis=dict(tickformat='%Y-%m-%d')
+                )
                 st.plotly_chart(fig_dosage, use_container_width=True)
 
         # Side effects correlation
@@ -332,7 +337,8 @@ elif page == "Analytics":
                     ticktext=['Injections', 'Side Effects'],
                     range=[0.5, 2.5]
                 ),
-                showlegend=True
+                showlegend=True,
+                xaxis=dict(tickformat='%Y-%m-%d')
             )
             st.plotly_chart(fig_timeline, use_container_width=True)
 
