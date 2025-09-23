@@ -6,6 +6,7 @@ from datetime import datetime, date
 import os
 import gspread
 from google.oauth2.service_account import Credentials
+import numpy as np
 
 st.set_page_config(page_title="GLP-1 Injection Tracker", page_icon="💉", layout="wide")
 
@@ -219,10 +220,53 @@ elif page == "Analytics":
         if 'weight' in injections_df.columns and not injections_df['weight'].isna().all():
             weight_data = injections_df[injections_df['weight'] > 0].copy()
             if not weight_data.empty:
-                fig_weight = px.line(weight_data, x='date', y='weight',
-                                   title='Weight Over Time',
-                                   markers=True)
-                fig_weight.update_layout(xaxis_title="Date", yaxis_title="Weight (lbs)")
+                # Sort by date to ensure proper rolling calculation
+                weight_data = weight_data.sort_values('date')
+
+                # Calculate 15-day rolling average
+                weight_data['rolling_avg'] = weight_data['weight'].rolling(window=15, min_periods=1).mean()
+
+                # Create figure with multiple traces
+                fig_weight = go.Figure()
+
+                # Add actual weight data
+                fig_weight.add_trace(go.Scatter(
+                    x=weight_data['date'],
+                    y=weight_data['weight'],
+                    mode='markers+lines',
+                    name='Actual Weight',
+                    line=dict(color='blue', width=1),
+                    marker=dict(size=6)
+                ))
+
+                # Add 15-day rolling average
+                fig_weight.add_trace(go.Scatter(
+                    x=weight_data['date'],
+                    y=weight_data['rolling_avg'],
+                    mode='lines',
+                    name='15-Day Rolling Average',
+                    line=dict(color='orange', width=3)
+                ))
+
+                # Add linear trend line
+                x_numeric = np.arange(len(weight_data))
+                z = np.polyfit(x_numeric, weight_data['weight'], 1)
+                trend_line = np.poly1d(z)(x_numeric)
+
+                fig_weight.add_trace(go.Scatter(
+                    x=weight_data['date'],
+                    y=trend_line,
+                    mode='lines',
+                    name='Linear Trend',
+                    line=dict(color='red', width=2, dash='dash')
+                ))
+
+                fig_weight.update_layout(
+                    title='Weight Over Time with Trends',
+                    xaxis_title="Date",
+                    yaxis_title="Weight (lbs)",
+                    showlegend=True
+                )
                 st.plotly_chart(fig_weight, use_container_width=True)
 
         # Dosage tracking
