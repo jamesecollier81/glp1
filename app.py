@@ -133,6 +133,12 @@ def save_data(injections_df, side_effects_df):
 st.title("💉 GLP-1 Injection Tracker")
 st.sidebar.title("Navigation")
 
+# Add refresh button in sidebar
+if st.sidebar.button("🔄 Refresh Data", help="Force reload data from Google Sheets"):
+    # Clear the cache to force fresh data load
+    load_data.clear()
+    st.rerun()
+
 # Load existing data
 injections_df, side_effects_df = load_data()
 
