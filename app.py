@@ -91,44 +91,77 @@ def load_data():
 
     return injections_df, side_effects_df
 
-def save_data(injections_df, side_effects_df):
-    """Save data to Google Sheets or CSV files"""
+def append_injection(injection_data):
+    """Append a single injection to Google Sheets"""
     try:
         if SERVICE_ACCOUNT_INFO and SHEET_URL:
             client = get_gsheet_client()
             if client:
-                # Extract sheet ID from URL
                 sheet_id = SHEET_URL.split('/d/')[1].split('/')[0]
                 sheet = client.open_by_key(sheet_id)
-
-                # Save injections data
                 injections_worksheet = sheet.worksheet("injections")
-                # Clear existing data and add headers
-                injections_worksheet.clear()
-                injections_worksheet.append_row(['date', 'time', 'dosage', 'weight', 'site', 'notes'])
-
-                # Convert DataFrame to list of lists for gspread
-                if not injections_df.empty:
-                    injections_data = injections_df.astype(str).values.tolist()
-                    injections_worksheet.append_rows(injections_data)
-
-                # Save side effects data
-                side_effects_worksheet = sheet.worksheet("side_effects")
-                side_effects_worksheet.clear()
-                side_effects_worksheet.append_row(['date', 'notes'])
-
-                if not side_effects_df.empty:
-                    side_effects_data = side_effects_df.astype(str).values.tolist()
-                    side_effects_worksheet.append_rows(side_effects_data)
+                
+                # Check if sheet is empty (no headers)
+                existing_data = injections_worksheet.get_all_values()
+                if not existing_data or len(existing_data) == 0:
+                    # Add headers first
+                    injections_worksheet.append_row(['date', 'time', 'dosage', 'weight', 'site', 'notes'])
+                
+                # Append the new injection
+                row_data = [
+                    str(injection_data['date']),
+                    str(injection_data['time']),
+                    str(injection_data['dosage']),
+                    str(injection_data['weight']),
+                    str(injection_data['site']),
+                    str(injection_data['notes'])
+                ]
+                injections_worksheet.append_row(row_data)
+                return True
         else:
-            # Fallback to CSV files for local development
+            # Fallback to CSV for local development
+            injections_df, side_effects_df = load_data()
+            new_row = pd.DataFrame([injection_data])
+            injections_df = pd.concat([injections_df, new_row], ignore_index=True)
             injections_df.to_csv('injections.csv', index=False)
-            side_effects_df.to_csv('side_effects.csv', index=False)
+            return True
     except Exception as e:
-        st.error(f"Error saving data: {e}")
-        # Fallback to CSV
-        injections_df.to_csv('injections.csv', index=False)
-        side_effects_df.to_csv('side_effects.csv', index=False)
+        st.error(f"Error appending injection: {e}")
+        return False
+
+def append_side_effect(effect_data):
+    """Append a single side effect to Google Sheets"""
+    try:
+        if SERVICE_ACCOUNT_INFO and SHEET_URL:
+            client = get_gsheet_client()
+            if client:
+                sheet_id = SHEET_URL.split('/d/')[1].split('/')[0]
+                sheet = client.open_by_key(sheet_id)
+                side_effects_worksheet = sheet.worksheet("side_effects")
+                
+                # Check if sheet is empty (no headers)
+                existing_data = side_effects_worksheet.get_all_values()
+                if not existing_data or len(existing_data) == 0:
+                    # Add headers first
+                    side_effects_worksheet.append_row(['date', 'notes'])
+                
+                # Append the new side effect
+                row_data = [
+                    str(effect_data['date']),
+                    str(effect_data['notes'])
+                ]
+                side_effects_worksheet.append_row(row_data)
+                return True
+        else:
+            # Fallback to CSV for local development
+            injections_df, side_effects_df = load_data()
+            new_row = pd.DataFrame([effect_data])
+            side_effects_df = pd.concat([side_effects_df, new_row], ignore_index=True)
+            side_effects_df.to_csv('side_effects.csv', index=False)
+            return True
+    except Exception as e:
+        st.error(f"Error appending side effect: {e}")
+        return False
 
 st.title("💉 GLP-1 Injection Tracker")
 st.sidebar.title("Navigation")
@@ -175,11 +208,12 @@ if page == "Injection Tracking":
                 'notes': notes
             }
 
-            new_row = pd.DataFrame([new_injection])
-            injections_df = pd.concat([injections_df, new_row], ignore_index=True)
-            save_data(injections_df, side_effects_df)
-            st.success("Injection logged successfully!")
-            st.rerun()
+            if append_injection(new_injection):
+                st.success("Injection logged successfully!")
+                load_data.clear()  # Clear cache to show new data
+                st.rerun()
+            else:
+                st.error("Failed to log injection. Please try again.")
 
     # Display recent injections
     if not injections_df.empty:
@@ -188,7 +222,7 @@ if page == "Injection Tracking":
         st.dataframe(recent_injections, use_container_width=True)
 
 elif page == "Side Effects":
-    st.header("🤒 Log Side Effects")
+    st.header("🤢 Log Side Effects")
 
     with st.form("side_effects_form"):
         effect_date = st.date_input("Date", value=date.today())
@@ -201,11 +235,12 @@ elif page == "Side Effects":
                     'notes': effect_notes
                 }
 
-                new_row = pd.DataFrame([new_effect])
-                side_effects_df = pd.concat([side_effects_df, new_row], ignore_index=True)
-                save_data(injections_df, side_effects_df)
-                st.success("Side effects logged successfully!")
-                st.rerun()
+                if append_side_effect(new_effect):
+                    st.success("Side effects logged successfully!")
+                    load_data.clear()  # Clear cache to show new data
+                    st.rerun()
+                else:
+                    st.error("Failed to log side effects. Please try again.")
             else:
                 st.error("Please enter side effects description")
 
