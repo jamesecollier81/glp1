@@ -47,7 +47,7 @@ def load_data():
                     if not injections_df.empty:
                         injections_df['date'] = pd.to_datetime(injections_df['date'])
                 except Exception:
-                    injections_df = pd.DataFrame(columns=['date', 'time', 'dosage', 'weight', 'site', 'notes'])
+                    injections_df = pd.DataFrame(columns=['date', 'time', 'dosage', 'weight', 'site', 'notes', 'user'])
 
                 # Load side effects data
                 try:
@@ -57,7 +57,7 @@ def load_data():
                     if not side_effects_df.empty:
                         side_effects_df['date'] = pd.to_datetime(side_effects_df['date'])
                 except Exception:
-                    side_effects_df = pd.DataFrame(columns=['date', 'notes'])
+                    side_effects_df = pd.DataFrame(columns=['date', 'notes', 'user'])
             else:
                 raise Exception("Could not authenticate with Google Sheets")
         else:
@@ -66,13 +66,13 @@ def load_data():
                 injections_df = pd.read_csv('injections.csv')
                 injections_df['date'] = pd.to_datetime(injections_df['date'])
             except FileNotFoundError:
-                injections_df = pd.DataFrame(columns=['date', 'time', 'dosage', 'weight', 'site', 'notes'])
+                injections_df = pd.DataFrame(columns=['date', 'time', 'dosage', 'weight', 'site', 'notes', 'user'])
 
             try:
                 side_effects_df = pd.read_csv('side_effects.csv')
                 side_effects_df['date'] = pd.to_datetime(side_effects_df['date'])
             except FileNotFoundError:
-                side_effects_df = pd.DataFrame(columns=['date', 'notes'])
+                side_effects_df = pd.DataFrame(columns=['date', 'notes', 'user'])
 
     except Exception as e:
         st.error(f"Error loading data: {e}")
@@ -81,89 +81,62 @@ def load_data():
             injections_df = pd.read_csv('injections.csv')
             injections_df['date'] = pd.to_datetime(injections_df['date'])
         except FileNotFoundError:
-            injections_df = pd.DataFrame(columns=['date', 'time', 'dosage', 'weight', 'site', 'notes'])
+            injections_df = pd.DataFrame(columns=['date', 'time', 'dosage', 'weight', 'site', 'notes', 'user'])
 
         try:
             side_effects_df = pd.read_csv('side_effects.csv')
             side_effects_df['date'] = pd.to_datetime(side_effects_df['date'])
         except FileNotFoundError:
-            side_effects_df = pd.DataFrame(columns=['date', 'notes'])
+            side_effects_df = pd.DataFrame(columns=['date', 'notes', 'user'])
 
     return injections_df, side_effects_df
 
-def append_injection(injection_data):
-    """Append a single injection to Google Sheets"""
+def save_data(injections_df, side_effects_df):
+    """Save data to Google Sheets or CSV files"""
     try:
         if SERVICE_ACCOUNT_INFO and SHEET_URL:
             client = get_gsheet_client()
             if client:
+                # Extract sheet ID from URL
                 sheet_id = SHEET_URL.split('/d/')[1].split('/')[0]
                 sheet = client.open_by_key(sheet_id)
-                injections_worksheet = sheet.worksheet("injections")
-                
-                # Check if sheet is empty (no headers)
-                existing_data = injections_worksheet.get_all_values()
-                if not existing_data or len(existing_data) == 0:
-                    # Add headers first
-                    injections_worksheet.append_row(['date', 'time', 'dosage', 'weight', 'site', 'notes'])
-                
-                # Append the new injection
-                row_data = [
-                    str(injection_data['date']),
-                    str(injection_data['time']),
-                    str(injection_data['dosage']),
-                    str(injection_data['weight']),
-                    str(injection_data['site']),
-                    str(injection_data['notes'])
-                ]
-                injections_worksheet.append_row(row_data)
-                return True
-        else:
-            # Fallback to CSV for local development
-            injections_df, side_effects_df = load_data()
-            new_row = pd.DataFrame([injection_data])
-            injections_df = pd.concat([injections_df, new_row], ignore_index=True)
-            injections_df.to_csv('injections.csv', index=False)
-            return True
-    except Exception as e:
-        st.error(f"Error appending injection: {e}")
-        return False
 
-def append_side_effect(effect_data):
-    """Append a single side effect to Google Sheets"""
-    try:
-        if SERVICE_ACCOUNT_INFO and SHEET_URL:
-            client = get_gsheet_client()
-            if client:
-                sheet_id = SHEET_URL.split('/d/')[1].split('/')[0]
-                sheet = client.open_by_key(sheet_id)
+                # Save injections data
+                injections_worksheet = sheet.worksheet("injections")
+                # Clear existing data and add headers
+                injections_worksheet.clear()
+                injections_worksheet.append_row(['date', 'time', 'dosage', 'weight', 'site', 'notes', 'user'])
+
+                # Convert DataFrame to list of lists for gspread
+                if not injections_df.empty:
+                    injections_data = injections_df.astype(str).values.tolist()
+                    injections_worksheet.append_rows(injections_data)
+
+                # Save side effects data
                 side_effects_worksheet = sheet.worksheet("side_effects")
-                
-                # Check if sheet is empty (no headers)
-                existing_data = side_effects_worksheet.get_all_values()
-                if not existing_data or len(existing_data) == 0:
-                    # Add headers first
-                    side_effects_worksheet.append_row(['date', 'notes'])
-                
-                # Append the new side effect
-                row_data = [
-                    str(effect_data['date']),
-                    str(effect_data['notes'])
-                ]
-                side_effects_worksheet.append_row(row_data)
-                return True
+                side_effects_worksheet.clear()
+                side_effects_worksheet.append_row(['date', 'notes', 'user'])
+
+                if not side_effects_df.empty:
+                    side_effects_data = side_effects_df.astype(str).values.tolist()
+                    side_effects_worksheet.append_rows(side_effects_data)
         else:
-            # Fallback to CSV for local development
-            injections_df, side_effects_df = load_data()
-            new_row = pd.DataFrame([effect_data])
-            side_effects_df = pd.concat([side_effects_df, new_row], ignore_index=True)
+            # Fallback to CSV files for local development
+            injections_df.to_csv('injections.csv', index=False)
             side_effects_df.to_csv('side_effects.csv', index=False)
-            return True
     except Exception as e:
-        st.error(f"Error appending side effect: {e}")
-        return False
+        st.error(f"Error saving data: {e}")
+        # Fallback to CSV
+        injections_df.to_csv('injections.csv', index=False)
+        side_effects_df.to_csv('side_effects.csv', index=False)
 
 st.title("💉 GLP-1 Injection Tracker")
+
+# User selection in sidebar
+st.sidebar.title("User")
+selected_user = st.sidebar.radio("Select User", ["James", "Shannon"], key="user_selector")
+
+st.sidebar.markdown("---")
 st.sidebar.title("Navigation")
 
 # Add refresh button in sidebar
@@ -175,11 +148,22 @@ if st.sidebar.button("🔄 Refresh Data", help="Force reload data from Google Sh
 # Load existing data
 injections_df, side_effects_df = load_data()
 
+# Filter data by selected user
+if not injections_df.empty and 'user' in injections_df.columns:
+    user_injections_df = injections_df[injections_df['user'] == selected_user].copy()
+else:
+    user_injections_df = injections_df.copy()
+
+if not side_effects_df.empty and 'user' in side_effects_df.columns:
+    user_side_effects_df = side_effects_df[side_effects_df['user'] == selected_user].copy()
+else:
+    user_side_effects_df = side_effects_df.copy()
+
 # Navigation
 page = st.sidebar.selectbox("Choose a page", ["Injection Tracking", "Side Effects", "Analytics"])
 
 if page == "Injection Tracking":
-    st.header("📝 Log Injection")
+    st.header(f"📝 Log Injection - {selected_user}")
 
     with st.form("injection_form"):
         col1, col2 = st.columns(2)
@@ -205,24 +189,27 @@ if page == "Injection Tracking":
                 'dosage': dosage,
                 'weight': weight,
                 'site': site,
-                'notes': notes
+                'notes': notes,
+                'user': selected_user
             }
 
-            if append_injection(new_injection):
-                st.success("Injection logged successfully!")
-                load_data.clear()  # Clear cache to show new data
-                st.rerun()
-            else:
-                st.error("Failed to log injection. Please try again.")
+            new_row = pd.DataFrame([new_injection])
+            injections_df = pd.concat([injections_df, new_row], ignore_index=True)
+            save_data(injections_df, side_effects_df)
+            st.success(f"Injection logged successfully for {selected_user}!")
+            load_data.clear()
+            st.rerun()
 
     # Display recent injections
-    if not injections_df.empty:
-        st.header("Recent Injections")
-        recent_injections = injections_df.sort_values('date', ascending=False).head(10)
-        st.dataframe(recent_injections, use_container_width=True)
+    if not user_injections_df.empty:
+        st.header(f"Recent Injections - {selected_user}")
+        recent_injections = user_injections_df.sort_values('date', ascending=False).head(10)
+        # Drop user column for display
+        display_cols = [col for col in recent_injections.columns if col != 'user']
+        st.dataframe(recent_injections[display_cols], use_container_width=True)
 
 elif page == "Side Effects":
-    st.header("🤢 Log Side Effects")
+    st.header(f"🤢 Log Side Effects - {selected_user}")
 
     with st.form("side_effects_form"):
         effect_date = st.date_input("Date", value=date.today())
@@ -232,34 +219,37 @@ elif page == "Side Effects":
             if effect_notes.strip():
                 new_effect = {
                     'date': effect_date,
-                    'notes': effect_notes
+                    'notes': effect_notes,
+                    'user': selected_user
                 }
 
-                if append_side_effect(new_effect):
-                    st.success("Side effects logged successfully!")
-                    load_data.clear()  # Clear cache to show new data
-                    st.rerun()
-                else:
-                    st.error("Failed to log side effects. Please try again.")
+                new_row = pd.DataFrame([new_effect])
+                side_effects_df = pd.concat([side_effects_df, new_row], ignore_index=True)
+                save_data(injections_df, side_effects_df)
+                st.success(f"Side effects logged successfully for {selected_user}!")
+                load_data.clear()
+                st.rerun()
             else:
                 st.error("Please enter side effects description")
 
     # Display recent side effects
-    if not side_effects_df.empty:
-        st.header("Recent Side Effects")
-        recent_effects = side_effects_df.sort_values('date', ascending=False).head(10)
-        st.dataframe(recent_effects, use_container_width=True)
+    if not user_side_effects_df.empty:
+        st.header(f"Recent Side Effects - {selected_user}")
+        recent_effects = user_side_effects_df.sort_values('date', ascending=False).head(10)
+        # Drop user column for display
+        display_cols = [col for col in recent_effects.columns if col != 'user']
+        st.dataframe(recent_effects[display_cols], use_container_width=True)
 
 elif page == "Analytics":
-    st.header("📊 Analytics Dashboard")
+    st.header(f"📊 Analytics Dashboard - {selected_user}")
 
-    if injections_df.empty:
-        st.warning("No injection data available. Please log some injections first.")
+    if user_injections_df.empty:
+        st.warning(f"No injection data available for {selected_user}. Please log some injections first.")
     else:
         # Weight tracking
         st.subheader("Weight Trends")
-        if 'weight' in injections_df.columns and not injections_df['weight'].isna().all():
-            weight_data = injections_df[injections_df['weight'] > 0].copy()
+        if 'weight' in user_injections_df.columns and not user_injections_df['weight'].isna().all():
+            weight_data = user_injections_df[user_injections_df['weight'] > 0].copy()
             if not weight_data.empty:
                 # Sort by date to ensure proper rolling calculation
                 weight_data = weight_data.sort_values('date')
@@ -321,8 +311,8 @@ elif page == "Analytics":
 
         # Dosage tracking
         st.subheader("Dosage Trends")
-        if 'dosage' in injections_df.columns and not injections_df['dosage'].isna().all():
-            dosage_data = injections_df[injections_df['dosage'] > 0].copy()
+        if 'dosage' in user_injections_df.columns and not user_injections_df['dosage'].isna().all():
+            dosage_data = user_injections_df[user_injections_df['dosage'] > 0].copy()
             if not dosage_data.empty:
                 fig_dosage = px.line(dosage_data, x='date', y='dosage',
                                    title='Dosage Over Time',
@@ -335,32 +325,32 @@ elif page == "Analytics":
                 st.plotly_chart(fig_dosage, use_container_width=True)
 
         # Side effects correlation
-        if not side_effects_df.empty:
+        if not user_side_effects_df.empty:
             st.subheader("Side Effects Timeline")
 
             # Create a timeline showing injections and side effects
             fig_timeline = go.Figure()
 
             # Add injection dates
-            if not injections_df.empty:
+            if not user_injections_df.empty:
                 fig_timeline.add_trace(go.Scatter(
-                    x=injections_df['date'],
-                    y=[1] * len(injections_df),
+                    x=user_injections_df['date'],
+                    y=[1] * len(user_injections_df),
                     mode='markers',
                     name='Injections',
                     marker=dict(color='blue', size=10),
-                    text=injections_df['dosage'].astype(str) + ' mg',
+                    text=user_injections_df['dosage'].astype(str) + ' mg',
                     hovertemplate='<b>Injection</b><br>Date: %{x}<br>Dosage: %{text}<extra></extra>'
                 ))
 
             # Add side effect dates
             fig_timeline.add_trace(go.Scatter(
-                x=side_effects_df['date'],
-                y=[2] * len(side_effects_df),
+                x=user_side_effects_df['date'],
+                y=[2] * len(user_side_effects_df),
                 mode='markers',
                 name='Side Effects',
                 marker=dict(color='red', size=10),
-                text=side_effects_df['notes'],
+                text=user_side_effects_df['notes'],
                 hovertemplate='<b>Side Effect</b><br>Date: %{x}<br>Notes: %{text}<extra></extra>'
             ))
 
@@ -382,18 +372,18 @@ elif page == "Analytics":
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            total_injections = len(injections_df)
+            total_injections = len(user_injections_df)
             st.metric("Total Injections", total_injections)
 
         with col2:
-            if not injections_df.empty and 'weight' in injections_df.columns:
-                weight_data = injections_df[injections_df['weight'] > 0]
+            if not user_injections_df.empty and 'weight' in user_injections_df.columns:
+                weight_data = user_injections_df[user_injections_df['weight'] > 0]
                 if len(weight_data) > 1:
                     weight_change = weight_data.iloc[-1]['weight'] - weight_data.iloc[0]['weight']
                     st.metric("Weight Change", f"{weight_change:.1f} lbs")
 
         with col3:
-            total_side_effects = len(side_effects_df)
+            total_side_effects = len(user_side_effects_df)
             st.metric("Total Side Effect Reports", total_side_effects)
 
 # Footer
