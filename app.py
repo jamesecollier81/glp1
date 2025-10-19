@@ -409,6 +409,8 @@ elif page == "Analytics":
 # Footer
 st.sidebar.markdown("---")
 st.sidebar.markdown("💡 **Tips:**")
-st.sidebar.markdown("• Log injections consistently for better tracking")
-st.sidebar.markdown("• Record weight at the same time of day")
-st.sidebar.markdown("• Note any side effects, even minor ones")
+st.sidebar.markdown("• 2mg = 16 units")
+st.sidebar.markdown("• 3mg = 24 units")
+st.sidebar.markdown("• 4mg = 32 units")
+st.sidebar.markdown("• 5mg = 40 units")
+st.sidebar.markdown("• Each addtl mg = 8 units")
