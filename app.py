@@ -45,8 +45,21 @@ def load_data():
                     injections_data = injections_worksheet.get_all_records()
                     injections_df = pd.DataFrame(injections_data)
                     if not injections_df.empty:
-                        injections_df['date'] = pd.to_datetime(injections_df['date'])
-                except Exception:
+                        # Handle both serial numbers and date strings
+                        def parse_date(val):
+                            try:
+                                # If it's a number (serial date from Excel/Sheets)
+                                if isinstance(val, (int, float)):
+                                    # Excel/Google Sheets epoch: December 30, 1899
+                                    return pd.Timestamp('1899-12-30') + pd.Timedelta(days=val)
+                                # Otherwise try to parse as string
+                                return pd.to_datetime(val)
+                            except:
+                                return pd.NaT
+                        
+                        injections_df['date'] = injections_df['date'].apply(parse_date)
+                except Exception as e:
+                    st.error(f"Error loading injections: {e}")
                     injections_df = pd.DataFrame(columns=['date', 'time', 'dosage', 'weight', 'site', 'notes', 'user'])
 
                 # Load side effects data
@@ -55,8 +68,21 @@ def load_data():
                     side_effects_data = side_effects_worksheet.get_all_records()
                     side_effects_df = pd.DataFrame(side_effects_data)
                     if not side_effects_df.empty:
-                        side_effects_df['date'] = pd.to_datetime(side_effects_df['date'])
-                except Exception:
+                        # Handle both serial numbers and date strings
+                        def parse_date(val):
+                            try:
+                                # If it's a number (serial date from Excel/Sheets)
+                                if isinstance(val, (int, float)):
+                                    # Excel/Google Sheets epoch: December 30, 1899
+                                    return pd.Timestamp('1899-12-30') + pd.Timedelta(days=val)
+                                # Otherwise try to parse as string
+                                return pd.to_datetime(val)
+                            except:
+                                return pd.NaT
+                        
+                        side_effects_df['date'] = side_effects_df['date'].apply(parse_date)
+                except Exception as e:
+                    st.error(f"Error loading side effects: {e}")
                     side_effects_df = pd.DataFrame(columns=['date', 'notes', 'user'])
             else:
                 raise Exception("Could not authenticate with Google Sheets")
