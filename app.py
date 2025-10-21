@@ -271,6 +271,21 @@ elif page == "Analytics":
         if 'weight' in user_injections_df.columns and not user_injections_df['weight'].isna().all():
             weight_data = user_injections_df[user_injections_df['weight'] > 0].copy()
             if not weight_data.empty:
+                # Calculate weight loss metrics
+                max_weight = weight_data['weight'].max()
+                current_weight = weight_data.sort_values('date').iloc[-1]['weight']
+                total_weight_lost = max_weight - current_weight
+                percent_lost = (total_weight_lost / max_weight) * 100
+                
+                # Display weight loss metrics
+                metric_col1, metric_col2 = st.columns(2)
+                with metric_col1:
+                    st.metric("Total Weight Lost", f"{total_weight_lost:.1f} lbs", 
+                             delta=f"-{total_weight_lost:.1f}", delta_color="inverse")
+                with metric_col2:
+                    st.metric("Weight Loss %", f"{percent_lost:.1f}%",
+                             delta=f"-{percent_lost:.1f}%", delta_color="inverse")
+                    
                 # Sort by date to ensure proper rolling calculation
                 weight_data = weight_data.sort_values('date')
 
