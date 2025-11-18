@@ -271,11 +271,8 @@ elif page == "Analytics":
         if 'weight' in user_injections_df.columns and not user_injections_df['weight'].isna().all():
             weight_data = user_injections_df[user_injections_df['weight'] > 0].copy()
             if not weight_data.empty:
-                # Sort by date to ensure proper rolling calculation
+                # Sort by date to ensure proper trend calculation
                 weight_data = weight_data.sort_values('date')
-
-                # Calculate 15-day rolling average
-                weight_data['rolling_avg'] = weight_data['weight'].rolling(window=15, min_periods=1).mean()
 
                 # Create figure with multiple traces
                 fig_weight = go.Figure()
@@ -288,15 +285,6 @@ elif page == "Analytics":
                     name='Actual Weight',
                     line=dict(color='blue', width=1),
                     marker=dict(size=6)
-                ))
-
-                # Add 15-day rolling average
-                fig_weight.add_trace(go.Scatter(
-                    x=weight_data['date'],
-                    y=weight_data['rolling_avg'],
-                    mode='lines',
-                    name='15-Day Rolling Average',
-                    line=dict(color='orange', width=3)
                 ))
 
                 # Add linear trend line (only if we have enough data points)
