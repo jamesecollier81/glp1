@@ -302,7 +302,10 @@ elif page == "Analytics":
                 # Add linear trend line (only if we have enough data points)
                 if len(weight_data) >= 2:
                     try:
-                        x_numeric = np.arange(len(weight_data))
+                        # Convert dates to days since first date for proper trend calculation
+                        first_date = weight_data['date'].min()
+                        x_numeric = (weight_data['date'] - first_date).dt.days.values
+
                         # Ensure we have valid weight data
                         valid_weights = weight_data['weight'].dropna()
                         if len(valid_weights) >= 2 and valid_weights.std() > 0:
@@ -323,9 +326,9 @@ elif page == "Analytics":
                             forecast_days = 90
                             forecast_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=forecast_days)
 
-                            # Calculate forecast values
-                            forecast_x_numeric = np.arange(len(weight_data), len(weight_data) + forecast_days)
-                            forecast_values = np.poly1d(z)(forecast_x_numeric)
+                            # Calculate forecast values using actual day counts
+                            days_from_start = (forecast_dates - first_date).days.values
+                            forecast_values = np.poly1d(z)(days_from_start)
 
                             fig_weight.add_trace(go.Scatter(
                                 x=forecast_dates,
