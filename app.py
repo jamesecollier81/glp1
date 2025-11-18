@@ -271,21 +271,6 @@ elif page == "Analytics":
         if 'weight' in user_injections_df.columns and not user_injections_df['weight'].isna().all():
             weight_data = user_injections_df[user_injections_df['weight'] > 0].copy()
             if not weight_data.empty:
-                # Calculate weight loss metrics
-                max_weight = weight_data['weight'].max()
-                current_weight = weight_data.sort_values('date').iloc[-1]['weight']
-                total_weight_lost = max_weight - current_weight
-                percent_lost = (total_weight_lost / max_weight) * 100
-                
-                # Display weight loss metrics
-                metric_col1, metric_col2 = st.columns(2)
-                with metric_col1:
-                    st.metric("Total Weight Lost", f"{total_weight_lost:.1f} lbs", 
-                             delta=f"-{total_weight_lost:.1f}", delta_color="inverse")
-                with metric_col2:
-                    st.metric("Weight Loss %", f"{percent_lost:.1f}%",
-                             delta=f"-{percent_lost:.1f}%", delta_color="inverse")
-                    
                 # Sort by date to ensure proper rolling calculation
                 weight_data = weight_data.sort_values('date')
 
@@ -324,12 +309,31 @@ elif page == "Analytics":
                             z = np.polyfit(x_numeric, weight_data['weight'], 1)
                             trend_line = np.poly1d(z)(x_numeric)
 
+                            # Add trend line for existing data
                             fig_weight.add_trace(go.Scatter(
                                 x=weight_data['date'],
                                 y=trend_line,
                                 mode='lines',
                                 name='Linear Trend',
                                 line=dict(color='red', width=2, dash='dash')
+                            ))
+
+                            # Add 90-day forecast
+                            last_date = weight_data['date'].max()
+                            forecast_days = 90
+                            forecast_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=forecast_days)
+
+                            # Calculate forecast values
+                            forecast_x_numeric = np.arange(len(weight_data), len(weight_data) + forecast_days)
+                            forecast_values = np.poly1d(z)(forecast_x_numeric)
+
+                            fig_weight.add_trace(go.Scatter(
+                                x=forecast_dates,
+                                y=forecast_values,
+                                mode='lines',
+                                name='90-Day Forecast',
+                                line=dict(color='green', width=2, dash='dot'),
+                                hovertemplate='<b>Forecast</b><br>Date: %{x}<br>Weight: %{y:.1f} lbs<extra></extra>'
                             ))
                     except (np.linalg.LinAlgError, ValueError):
                         # Skip trend line if calculation fails
