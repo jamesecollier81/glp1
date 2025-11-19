@@ -266,6 +266,32 @@ elif page == "Analytics":
     if user_injections_df.empty:
         st.warning(f"No injection data available for {selected_user}. Please log some injections first.")
     else:
+        # Weight Loss Summary
+        if 'weight' in user_injections_df.columns and not user_injections_df['weight'].isna().all():
+            weight_data = user_injections_df[user_injections_df['weight'] > 0].sort_values('date')
+            if len(weight_data) > 1:
+                starting_weight = weight_data.iloc[0]['weight']
+                current_weight = weight_data.iloc[-1]['weight']
+                total_weight_lost = starting_weight - current_weight
+                percent_of_starting = (total_weight_lost / starting_weight) * 100
+
+                # Display weight loss metrics prominently
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric(
+                        "Total Weight Lost",
+                        f"{total_weight_lost:.1f} lbs",
+                        delta=f"{total_weight_lost:.1f} lbs" if total_weight_lost > 0 else None
+                    )
+                with col2:
+                    st.metric(
+                        "% of Starting Body Weight",
+                        f"{percent_of_starting:.1f}%",
+                        delta=f"{percent_of_starting:.1f}%" if total_weight_lost > 0 else None
+                    )
+
+                st.markdown("---")
+
         # Weight tracking
         st.subheader("Weight Trends")
         if 'weight' in user_injections_df.columns and not user_injections_df['weight'].isna().all():
