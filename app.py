@@ -10,6 +10,29 @@ import numpy as np
 
 st.set_page_config(page_title="GLP-1 Injection Tracker", page_icon="💉", layout="wide")
 
+# --- Auth gate ---
+import hmac
+
+def check_password():
+    def password_entered():
+        if hmac.compare_digest(st.session_state["password"], st.secrets["PASSWORD"]):
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if st.session_state.get("password_correct", False):
+        return True
+    st.text_input("Password", type="password", on_change=password_entered, key="password")
+    if "password_correct" in st.session_state:
+        st.error("Incorrect password")
+    return False
+
+if not check_password():
+    st.stop()
+# --- End auth gate ---
+
+
 # Google Sheets configuration
 SHEET_URL = st.secrets.get("SHEET_URL", "")
 SERVICE_ACCOUNT_INFO = st.secrets.get("SERVICE_ACCOUNT_INFO", {})
@@ -20,8 +43,7 @@ def get_gsheet_client():
         return None
 
     scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
+        "https://www.googleapis.com/auth/spreadsheets"
     ]
 
     credentials = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=scopes)
@@ -59,7 +81,7 @@ def load_data():
                         
                         injections_df['date'] = injections_df['date'].apply(parse_date)
                 except Exception as e:
-                    st.error(f"Error loading injections: {e}")
+                    st.error("Error loading injections. Please try refreshing.")
                     injections_df = pd.DataFrame(columns=['date', 'time', 'dosage', 'weight', 'site', 'notes', 'user'])
 
                 # Load side effects data
